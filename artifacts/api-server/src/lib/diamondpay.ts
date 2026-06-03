@@ -88,10 +88,17 @@ export class DiamondPayService {
 
     if (phoneNumber) body.phone_number = phoneNumber;
 
+    // redirect_url = where DiamondPay sends the CUSTOMER after payment (browser redirect)
+    const redirectUrl =
+      process.env.DIAMANOPAY_REDIRECT_URL ??
+      process.env.DIAMONDPAY_REDIRECT_URL;
+    if (redirectUrl) body.redirect_url = redirectUrl;
+
+    // callback_url / webhook_url = server-to-server POST notification (separate from redirect)
     const webhookUrl =
       process.env.DIAMANOPAY_WEBHOOK_URL ??
-      process.env.DIAMONDPAY_CALLBACK_URL;
-    if (webhookUrl) body.redirect_url = webhookUrl;
+      process.env.DIAMONDPAY_WEBHOOK_URL;
+    if (webhookUrl) body.callback_url = webhookUrl;
 
     logger.info(
       { url: `${this.baseUrl}/api/charges`, provider, amount },
