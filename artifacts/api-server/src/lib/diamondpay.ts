@@ -88,17 +88,31 @@ export class DiamondPayService {
 
     if (phoneNumber) body.phone_number = phoneNumber;
 
-    // redirect_url = where DiamondPay sends the CUSTOMER after payment (browser redirect)
+    // success_url = page affichée après paiement réussi (certaines versions de l'API)
+    const successUrl =
+      process.env.DIAMANOPAY_SUCCESS_URL ??
+      process.env.DIAMONDPAY_SUCCESS_URL;
+    if (successUrl) body.success_url = successUrl;
+
+    // redirect_url = redirection navigateur après paiement
     const redirectUrl =
       process.env.DIAMANOPAY_REDIRECT_URL ??
-      process.env.DIAMONDPAY_REDIRECT_URL;
+      process.env.DIAMONDPAY_REDIRECT_URL ??
+      successUrl; // fallback vers success_url si redirect non défini
     if (redirectUrl) body.redirect_url = redirectUrl;
 
-    // callback_url / webhook_url = server-to-server POST notification (separate from redirect)
+    // callback_url = alias de webhook selon certaines versions de l'API
+    const callbackUrl =
+      process.env.DIAMANOPAY_CALLBACK_URL ??
+      process.env.DIAMONDPAY_CALLBACK_URL;
+    if (callbackUrl) body.callback_url = callbackUrl;
+
+    // webhook_url = notification serveur-à-serveur (POST asynchrone)
     const webhookUrl =
       process.env.DIAMANOPAY_WEBHOOK_URL ??
-      process.env.DIAMONDPAY_WEBHOOK_URL;
-    if (webhookUrl) body.callback_url = webhookUrl;
+      process.env.DIAMONDPAY_WEBHOOK_URL ??
+      callbackUrl; // fallback vers callback_url
+    if (webhookUrl) body.webhook_url = webhookUrl;
 
     logger.info(
       { url: `${this.baseUrl}/api/charges`, provider, amount },
