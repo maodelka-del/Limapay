@@ -41,8 +41,8 @@ export default function Login() {
     loginMutation.mutate(
       { data: values },
       {
-        onSuccess: (data) => {
-          setAuthToken(data.token);
+        onSuccess: async (data) => {
+          await setAuthToken(data.token);
           setLocation("/");
         },
         onError: () => {
