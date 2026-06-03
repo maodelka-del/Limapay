@@ -22,7 +22,7 @@ router.post("/payments/diamondpay/initiate", requireAuth, async (req, res): Prom
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    req.log.error({ err: message }, "DiamondPay initiate failed");
+    req.log.error({ err: message }, "DiamanoPay initiate failed");
     res.status(502).json({ error: message });
   }
 });
@@ -40,6 +40,19 @@ router.get("/payments/diamondpay/:transactionId/status", requireAuth, async (req
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(502).json({ error: message });
+  }
+});
+
+router.post("/payments/diamondpay/webhook", async (req, res): Promise<void> => {
+  try {
+    const payload = req.body as Record<string, unknown>;
+    const parsed = diamondPayService.parseWebhookPayload(payload);
+    req.log.info({ transactionId: parsed.transactionId, status: parsed.status }, "DiamanoPay webhook received");
+    res.status(200).json({ received: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    req.log.error({ err: message }, "DiamanoPay webhook error");
+    res.status(400).json({ error: message });
   }
 });
 

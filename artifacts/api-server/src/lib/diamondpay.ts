@@ -12,22 +12,53 @@ export interface DiamondPayTransactionResult {
   createdAt: string;
 }
 
+const PROVIDER_MAP: Record<string, string> = {
+  wave: "WAVE",
+  orange_money: "ORANGE_MONEY",
+  free_money: "FREE_MONEY",
+};
+
+const STATUS_MAP: Record<string, DiamondPayTransactionResult["status"]> = {
+  pending: "pending",
+  PENDING: "pending",
+  processing: "pending",
+  PROCESSING: "pending",
+  confirmed: "confirmed",
+  CONFIRMED: "confirmed",
+  paid: "confirmed",
+  PAID: "confirmed",
+  success: "confirmed",
+  SUCCESS: "confirmed",
+  completed: "confirmed",
+  COMPLETED: "confirmed",
+  failed: "failed",
+  FAILED: "failed",
+  cancelled: "failed",
+  CANCELLED: "failed",
+  expired: "expired",
+  EXPIRED: "expired",
+};
+
 export class DiamondPayService {
-  private clientId: string;
-  private clientSecret: string;
+  private apiKey: string;
   private baseUrl: string;
 
   constructor() {
-    this.clientId = process.env.DIAMONDPAY_API_KEY ?? "";
-    this.clientSecret = process.env.DIAMONDPAY_API_SECRET ?? "";
-    this.baseUrl = (process.env.DIAMONDPAY_BASE_URL ?? "https://api.diamondpay.sn/v1").replace(/\/+$/, "");
+    this.apiKey =
+      process.env.DIAMANOPAY_API_KEY ??
+      process.env.DIAMONDPAY_API_KEY ??
+      "";
+    this.baseUrl = (
+      process.env.DIAMANOPAY_BASE_URL ??
+      process.env.DIAMONDPAY_BASE_URL ??
+      "https://api.diamanopay.com"
+    ).replace(/\/+$/, "");
   }
 
   private authHeaders(): Record<string, string> {
-    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64");
     return {
       "Content-Type": "application/json",
-      "Authorization": `Basic ${credentials}`,
+      Authorization: `Bearer ${this.apiKey}`,
     };
   }
 
@@ -37,100 +68,197 @@ export class DiamondPayService {
     saleId?: number,
     phoneNumber?: string
   ): Promise<DiamondPayTransactionResult> {
-    if (!this.clientId) {
-      logger.warn("DiamondPay Client ID not configured — using simulation mode");
+    if (!this.apiKey) {
+      logger.warn("DiamanoPay API key not configured — simulation mode");
       return this.simulateTransaction(amount, operator);
     }
 
     const reference = `LIMAPAY-${saleId ?? 0}-${Date.now()}`;
+    const provider = operator
+      ? (PROVIDER_MAP[operator] ?? operator.toUpperCase())
+      : "WAVE";
+
     const body: Record<string, unknown> = {
       amount,
-      currency: "XOF",
-      reference,
+      provider,
+      description: `Paiement LIMAPAY #${saleId ?? reference}`,
+      customer_reference: reference,
+      fee_on_customer: false,
     };
-    if (operator) body.operator = operator;
-    if (phoneNumber) body.phone_number = phoneNumber;
-    if (process.env.DIAMONDPAY_CALLBACK_URL) body.callback_url = process.env.DIAMONDPAY_CALLBACK_URL;
 
-    logger.info({ url: `${this.baseUrl}/transactions/initiate`, body }, "DiamondPay → request");
+    if (phoneNumber) body.phone_number = phoneNumber;
+
+    const webhookUrl =
+      process.env.DIAMANOPAY_WEBHOOK_URL ??
+      process.env.DIAMONDPAY_CALLBACK_URL;
+    if (webhookUrl) body.redirect_url = webhookUrl;
+
+    logger.info(
+      { url: `${this.baseUrl}/api/charges`, provider, amount },
+      "DiamanoPay → create charge"
+    );
 
     let response: Response;
     let responseText: string;
     try {
-      response = await fetch(`${this.baseUrl}/transactions/initiate`, {
+      response = await fetch(`${this.baseUrl}/api/charges`, {
         method: "POST",
         headers: this.authHeaders(),
         body: JSON.stringify(body),
       });
       responseText = await response.text();
     } catch (fetchErr) {
-      const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-      logger.error({ err: msg }, "DiamondPay → network error");
-      throw new Error(`DiamondPay réseau inaccessible: ${msg}`);
+      const msg =
+        fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      logger.error({ err: msg }, "DiamanoPay → network error");
+      throw new Error(`DiamanoPay réseau inaccessible: ${msg}`);
     }
 
-    logger.info({ status: response.status, body: responseText }, "DiamondPay ← response");
+    logger.info(
+      { status: response.status, body: responseText },
+      "DiamanoPay ← response"
+    );
 
     if (!response.ok) {
-      throw new Error(`DiamondPay ${response.status}: ${responseText}`);
+      let detail = responseText;
+      try {
+        const err = JSON.parse(responseText) as Record<string, unknown>;
+        detail = String(err.message ?? err.error ?? responseText);
+      } catch {
+        // keep raw text
+      }
+      throw new Error(`DiamanoPay ${response.status}: ${detail}`);
     }
 
     let data: Record<string, unknown>;
     try {
       data = JSON.parse(responseText);
     } catch {
-      throw new Error(`DiamondPay réponse non-JSON: ${responseText}`);
+      throw new Error(`DiamanoPay réponse non-JSON: ${responseText}`);
     }
+
+    const inner = (data.data ?? data) as Record<string, unknown>;
 
     return {
       transactionId: String(
-        data.transaction_id ?? data.transactionId ?? data.id ?? data.uuid ?? "unknown"
+        inner.id ??
+          inner.transaction_id ??
+          inner.transactionId ??
+          inner.uuid ??
+          "unknown"
       ),
       status: "pending",
       amount,
-      qrCodeUrl: (data.qr_code_url ?? data.qrCodeUrl ?? data.qr_url ?? null) as string | null,
-      qrCodeData: (data.qr_code_data ?? data.qrCodeData ?? null) as string | null,
-      paymentUrl: (data.payment_url ?? data.paymentUrl ?? data.redirect_url ?? data.checkout_url ?? data.url ?? null) as string | null,
+      qrCodeUrl: (inner.qr_code_url ??
+        inner.qrCodeUrl ??
+        inner.qr_url ??
+        null) as string | null,
+      qrCodeData: (inner.qr_code_data ??
+        inner.qrCodeData ??
+        null) as string | null,
+      paymentUrl: (inner.payment_url ??
+        inner.paymentUrl ??
+        inner.checkout_url ??
+        inner.redirect_url ??
+        inner.url ??
+        inner.link ??
+        null) as string | null,
       createdAt: new Date().toISOString(),
     };
   }
 
-  async getTransactionStatus(transactionId: string): Promise<DiamondPayTransactionResult> {
-    if (!this.clientId) {
+  async getTransactionStatus(
+    transactionId: string
+  ): Promise<DiamondPayTransactionResult> {
+    if (!this.apiKey || transactionId.startsWith("SIM-")) {
       return this.simulateStatusCheck(transactionId);
     }
 
     let response: Response;
     let responseText: string;
     try {
-      response = await fetch(`${this.baseUrl}/transactions/${transactionId}`, {
-        headers: this.authHeaders(),
-      });
+      response = await fetch(
+        `${this.baseUrl}/api/charges/${transactionId}`,
+        { headers: this.authHeaders() }
+      );
       responseText = await response.text();
     } catch (fetchErr) {
-      throw new Error(`DiamondPay réseau: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+      throw new Error(
+        `DiamanoPay réseau: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`
+      );
     }
 
     if (!response.ok) {
-      throw new Error(`DiamondPay status ${response.status}: ${responseText}`);
+      throw new Error(
+        `DiamanoPay status ${response.status}: ${responseText}`
+      );
     }
 
-    const data = JSON.parse(responseText) as Record<string, unknown>;
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      throw new Error(`DiamanoPay réponse non-JSON: ${responseText}`);
+    }
+
+    const inner = (data.data ?? data) as Record<string, unknown>;
+    const rawStatus = String(inner.status ?? "pending");
 
     return {
-      transactionId: String(data.transaction_id ?? data.transactionId ?? data.id ?? transactionId),
-      status: (data.status as DiamondPayTransactionResult["status"]) ?? "pending",
-      amount: (data.amount as number) ?? 0,
-      qrCodeUrl: (data.qr_code_url ?? data.qrCodeUrl ?? data.qr_url ?? null) as string | null,
-      qrCodeData: (data.qr_code_data ?? data.qrCodeData ?? null) as string | null,
-      paymentUrl: (data.payment_url ?? data.paymentUrl ?? data.redirect_url ?? null) as string | null,
-      createdAt: String(data.created_at ?? data.createdAt ?? new Date().toISOString()),
+      transactionId: String(
+        inner.id ??
+          inner.transaction_id ??
+          inner.transactionId ??
+          transactionId
+      ),
+      status: STATUS_MAP[rawStatus] ?? "pending",
+      amount: (inner.amount as number) ?? 0,
+      qrCodeUrl: (inner.qr_code_url ??
+        inner.qrCodeUrl ??
+        inner.qr_url ??
+        null) as string | null,
+      qrCodeData: (inner.qr_code_data ??
+        inner.qrCodeData ??
+        null) as string | null,
+      paymentUrl: (inner.payment_url ??
+        inner.paymentUrl ??
+        inner.checkout_url ??
+        inner.redirect_url ??
+        inner.url ??
+        null) as string | null,
+      createdAt: String(
+        inner.created_at ?? inner.createdAt ?? new Date().toISOString()
+      ),
     };
   }
 
-  private simulateTransaction(amount: number, operator?: DiamondPayOperator): DiamondPayTransactionResult {
-    const transactionId = `SIM-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-    const qrCodeData = `diamondpay://pay?txn=${transactionId}&amount=${amount}&currency=XOF${operator ? `&operator=${operator}` : ""}`;
+  parseWebhookPayload(payload: Record<string, unknown>): {
+    transactionId: string;
+    status: DiamondPayTransactionResult["status"];
+    amount: number;
+  } {
+    const inner = (payload.data ?? payload) as Record<string, unknown>;
+    const rawStatus = String(
+      inner.status ?? payload.status ?? "pending"
+    );
+    return {
+      transactionId: String(
+        inner.id ?? inner.transaction_id ?? inner.transactionId ?? ""
+      ),
+      status: STATUS_MAP[rawStatus] ?? "pending",
+      amount: (inner.amount as number) ?? 0,
+    };
+  }
+
+  private simulateTransaction(
+    amount: number,
+    operator?: DiamondPayOperator
+  ): DiamondPayTransactionResult {
+    const transactionId = `SIM-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)
+      .toUpperCase()}`;
+    const qrCodeData = `diamanopay://pay?txn=${transactionId}&amount=${amount}&currency=XOF${operator ? `&operator=${operator}` : ""}`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrCodeData)}`;
     return {
       transactionId,
@@ -143,10 +271,15 @@ export class DiamondPayService {
     };
   }
 
-  private simulateStatusCheck(transactionId: string): DiamondPayTransactionResult {
-    const txnAge = transactionId.startsWith("SIM-") ? parseInt(transactionId.split("-")[1]) : 0;
+  private simulateStatusCheck(
+    transactionId: string
+  ): DiamondPayTransactionResult {
+    const txnAge = transactionId.startsWith("SIM-")
+      ? parseInt(transactionId.split("-")[1])
+      : 0;
     const ageSeconds = (Date.now() - txnAge) / 1000;
-    const status: DiamondPayTransactionResult["status"] = ageSeconds > 30 ? "confirmed" : "pending";
+    const status: DiamondPayTransactionResult["status"] =
+      ageSeconds > 30 ? "confirmed" : "pending";
     return {
       transactionId,
       status,
