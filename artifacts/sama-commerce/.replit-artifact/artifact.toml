@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "LIMAPAY - SamaCommerce"
+version = "1.0.0"
+id = "artifacts/sama-commerce"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25291
+
+[services.development]
+run = "pnpm --filter @workspace/sama-commerce run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sama-commerce", "run", "build" ]
+publicDir = "artifacts/sama-commerce/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25291"
+BASE_PATH = "/"

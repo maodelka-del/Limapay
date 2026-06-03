@@ -1,22 +1,37 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: LIMAPAY API - Gestion commerciale pour commerces physiques du Sénégal
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentification
+  - name: products
+    description: Gestion des produits
+  - name: sales
+    description: Gestion des ventes
+  - name: customers
+    description: Gestion des clients
+  - name: debts
+    description: Gestion des dettes
+  - name: dashboard
+    description: Tableau de bord
+  - name: stock
+    description: Gestion des stocks
+  - name: payments
+    description: Paiements DiamondPay
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +39,993 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # AUTH
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Créer un compte
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Compte créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Données invalides
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Se connecter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Connecté
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Identifiants incorrects
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Se déconnecter
+      responses:
+        "204":
+          description: Déconnecté
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Profil utilisateur courant
+      responses:
+        "200":
+          description: Profil
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Non authentifié
+
+  # PRODUCTS
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: Lister les produits
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: lowStock
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Liste des produits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Créer un produit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Produit créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Obtenir un produit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Produit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Produit introuvable
+    patch:
+      operationId: updateProduct
+      tags: [products]
+      summary: Modifier un produit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        "200":
+          description: Produit modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      summary: Supprimer un produit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Supprimé
+
+  # SALES
+  /sales:
+    get:
+      operationId: listSales
+      tags: [sales]
+      summary: Lister les ventes
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Liste des ventes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sale"
+    post:
+      operationId: createSale
+      tags: [sales]
+      summary: Créer une vente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaleInput"
+      responses:
+        "201":
+          description: Vente créée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+
+  /sales/{id}:
+    get:
+      operationId: getSale
+      tags: [sales]
+      summary: Obtenir une vente
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Vente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sale"
+        "404":
+          description: Vente introuvable
+
+  # CUSTOMERS
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      summary: Lister les clients
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Liste des clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Customer"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Créer un client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "201":
+          description: Client créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+
+  /customers/{id}:
+    get:
+      operationId: getCustomer
+      tags: [customers]
+      summary: Obtenir un client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+    patch:
+      operationId: updateCustomer
+      tags: [customers]
+      summary: Modifier un client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdate"
+      responses:
+        "200":
+          description: Client modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      summary: Supprimer un client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Supprimé
+
+  # DEBTS
+  /debts:
+    get:
+      operationId: listDebts
+      tags: [debts]
+      summary: Lister toutes les dettes
+      parameters:
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, partial, paid]
+      responses:
+        "200":
+          description: Liste des dettes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Debt"
+    post:
+      operationId: createDebt
+      tags: [debts]
+      summary: Créer une dette (vente à crédit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DebtInput"
+      responses:
+        "201":
+          description: Dette créée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Debt"
+
+  /debts/{id}:
+    get:
+      operationId: getDebt
+      tags: [debts]
+      summary: Obtenir une dette
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Dette
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Debt"
+    patch:
+      operationId: updateDebt
+      tags: [debts]
+      summary: Modifier une dette
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DebtUpdate"
+      responses:
+        "200":
+          description: Dette modifiée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Debt"
+
+  /debts/{id}/payments:
+    post:
+      operationId: addDebtPayment
+      tags: [debts]
+      summary: Enregistrer un remboursement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DebtPaymentInput"
+      responses:
+        "201":
+          description: Remboursement enregistré
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DebtPayment"
+
+  # DASHBOARD
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Résumé du tableau de bord
+      responses:
+        "200":
+          description: Résumé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/top-products:
+    get:
+      operationId: getTopProducts
+      tags: [dashboard]
+      summary: Produits les plus vendus
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Top produits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopProduct"
+
+  /dashboard/sales-by-period:
+    get:
+      operationId: getSalesByPeriod
+      tags: [dashboard]
+      summary: Ventes par période
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+      responses:
+        "200":
+          description: Ventes par période
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SalesPeriodPoint"
+
+  # STOCK
+  /stock/alerts:
+    get:
+      operationId: getStockAlerts
+      tags: [stock]
+      summary: Alertes de stock (faible + rupture)
+      responses:
+        "200":
+          description: Alertes stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockAlerts"
+
+  # DIAMONDPAY
+  /payments/diamondpay/initiate:
+    post:
+      operationId: initiateDiamondPay
+      tags: [payments]
+      summary: Initier un paiement DiamondPay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiamondPayInitInput"
+      responses:
+        "200":
+          description: Transaction initiée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiamondPayTransaction"
+
+  /payments/diamondpay/{transactionId}/status:
+    get:
+      operationId: getDiamondPayStatus
+      tags: [payments]
+      summary: Vérifier le statut d'une transaction DiamondPay
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Statut transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiamondPayTransaction"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    # AUTH
+    RegisterInput:
+      type: object
+      required: [name, email, password, shopName]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        shopName:
+          type: string
+        role:
+          type: string
+          enum: [owner, cashier]
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+
+    User:
+      type: object
+      required: [id, name, email, role, shopName]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [owner, cashier]
+        shopName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # PRODUCTS
+    Product:
+      type: object
+      required: [id, name, salePrice, purchasePrice, stock, category]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        salePrice:
+          type: number
+        purchasePrice:
+          type: number
+        stock:
+          type: integer
+        lowStockThreshold:
+          type: integer
+        category:
+          type: string
+        barcode:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    ProductInput:
+      type: object
+      required: [name, salePrice, purchasePrice, stock, category]
+      properties:
+        name:
+          type: string
+        salePrice:
+          type: number
+        purchasePrice:
+          type: number
+        stock:
+          type: integer
+        lowStockThreshold:
+          type: integer
+        category:
+          type: string
+        barcode:
+          type: string
+        photoUrl:
+          type: string
+
+    ProductUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        salePrice:
+          type: number
+        purchasePrice:
+          type: number
+        stock:
+          type: integer
+        lowStockThreshold:
+          type: integer
+        category:
+          type: string
+        barcode:
+          type: string
+        photoUrl:
+          type: string
+
+    # SALES
+    SaleItem:
+      type: object
+      required: [productId, productName, quantity, unitPrice, totalPrice]
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+        totalPrice:
+          type: number
+
+    Sale:
+      type: object
+      required: [id, totalAmount, paymentMethod, status, items]
+      properties:
+        id:
+          type: integer
+        totalAmount:
+          type: number
+        amountPaid:
+          type: number
+        changeAmount:
+          type: number
+        paymentMethod:
+          type: string
+          enum: [cash, wave, orange_money, free_money, diamondpay, credit]
+        status:
+          type: string
+          enum: [completed, pending, cancelled]
+        customerId:
+          type: ["integer", "null"]
+        customerName:
+          type: ["string", "null"]
+        diamondPayTransactionId:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleItem"
+        createdAt:
+          type: string
+          format: date-time
+
+    SaleItemInput:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: integer
+        quantity:
+          type: integer
+
+    SaleInput:
+      type: object
+      required: [items, paymentMethod, totalAmount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaleItemInput"
+        paymentMethod:
+          type: string
+          enum: [cash, wave, orange_money, free_money, diamondpay, credit]
+        totalAmount:
+          type: number
+        amountPaid:
+          type: number
+        customerId:
+          type: integer
+        diamondPayTransactionId:
+          type: string
+
+    # CUSTOMERS
+    Customer:
+      type: object
+      required: [id, name, phone]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: ["string", "null"]
+        totalDebt:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+
+    CustomerInput:
+      type: object
+      required: [name, phone]
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+
+    CustomerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+
+    # DEBTS
+    DebtPayment:
+      type: object
+      required: [id, debtId, amount, paidAt]
+      properties:
+        id:
+          type: integer
+        debtId:
+          type: integer
+        amount:
+          type: number
+        note:
+          type: ["string", "null"]
+        paidAt:
+          type: string
+          format: date-time
+
+    Debt:
+      type: object
+      required: [id, customerId, customerName, customerPhone, originalAmount, remainingAmount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        customerId:
+          type: integer
+        customerName:
+          type: string
+        customerPhone:
+          type: string
+        saleId:
+          type: ["integer", "null"]
+        originalAmount:
+          type: number
+        remainingAmount:
+          type: number
+        status:
+          type: string
+          enum: [pending, partial, paid]
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        note:
+          type: ["string", "null"]
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/DebtPayment"
+        createdAt:
+          type: string
+          format: date-time
+
+    DebtInput:
+      type: object
+      required: [customerId, originalAmount]
+      properties:
+        customerId:
+          type: integer
+        saleId:
+          type: integer
+        originalAmount:
+          type: number
+        dueDate:
+          type: string
+          format: date
+        note:
+          type: string
+
+    DebtUpdate:
+      type: object
+      properties:
+        dueDate:
+          type: string
+          format: date
+        note:
+          type: string
+        status:
+          type: string
+          enum: [pending, partial, paid]
+
+    DebtPaymentInput:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: number
+        note:
+          type: string
+
+    # DASHBOARD
+    DashboardSummary:
+      type: object
+      required: [revenueToday, revenueWeek, revenueMonth, salesToday, salesWeek, salesMonth, averageBasket, totalDebtAmount, totalProducts, lowStockCount, outOfStockCount]
+      properties:
+        revenueToday:
+          type: number
+        revenueWeek:
+          type: number
+        revenueMonth:
+          type: number
+        salesToday:
+          type: integer
+        salesWeek:
+          type: integer
+        salesMonth:
+          type: integer
+        averageBasket:
+          type: number
+        totalDebtAmount:
+          type: number
+        totalProducts:
+          type: integer
+        lowStockCount:
+          type: integer
+        outOfStockCount:
+          type: integer
+
+    TopProduct:
+      type: object
+      required: [productId, productName, totalQuantity, totalRevenue]
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        totalQuantity:
+          type: integer
+        totalRevenue:
+          type: number
+
+    SalesPeriodPoint:
+      type: object
+      required: [label, revenue, salesCount]
+      properties:
+        label:
+          type: string
+        revenue:
+          type: number
+        salesCount:
+          type: integer
+
+    # STOCK
+    StockAlerts:
+      type: object
+      required: [lowStock, outOfStock]
+      properties:
+        lowStock:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        outOfStock:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+
+    # DIAMONDPAY
+    DiamondPayInitInput:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: number
+        saleId:
+          type: integer
+        operator:
+          type: string
+          enum: [wave, orange_money, free_money]
+        phoneNumber:
+          type: string
+
+    DiamondPayTransaction:
+      type: object
+      required: [transactionId, status, amount]
+      properties:
+        transactionId:
+          type: string
+        status:
+          type: string
+          enum: [pending, confirmed, failed, expired]
+        amount:
+          type: number
+        qrCodeUrl:
+          type: ["string", "null"]
+        qrCodeData:
+          type: ["string", "null"]
+        paymentUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
