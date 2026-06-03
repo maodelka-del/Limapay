@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/drawer";
 import {
   Search, Plus, Minus, Trash2, Printer, CheckCircle2, QrCode,
-  ShoppingCart, CreditCard, ChevronUp, X, Loader2, AlertCircle, ExternalLink,
+  ShoppingCart, CreditCard, ChevronUp, X, Loader2, AlertCircle, ExternalLink, Camera,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -72,7 +72,7 @@ export default function POS() {
   const { data: diamondStatus } = useGetDiamondPayStatus(diamondTxnId ?? "", {
     query: {
       enabled: !!diamondTxnId && !saleCreatingFromPoll,
-      refetchInterval: 3000,
+      refetchInterval: 1000,
     } as any,
   });
 
@@ -338,16 +338,27 @@ export default function POS() {
               <Card key={product.id}
                 className={`cursor-pointer hover:border-primary transition-all active:scale-95 select-none touch-manipulation ${product.stock <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
                 onClick={() => addToCart(product)}>
-                <CardContent className="p-2.5 md:p-3 flex flex-col h-full items-center text-center gap-1">
-                  <div className="w-full flex justify-end">
-                    {product.stock <= 0
-                      ? <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Rupture</Badge>
-                      : product.stock <= (product.lowStockThreshold || 5)
-                        ? <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-[10px] px-1.5 py-0">Faible</Badge>
-                        : <Badge variant="outline" className="text-primary border-primary/20 text-[10px] px-1.5 py-0">Stock</Badge>}
+                <CardContent className="p-0 flex flex-col h-full overflow-hidden rounded-lg">
+                  {/* Product photo */}
+                  <div className="relative w-full aspect-square bg-muted flex items-center justify-center overflow-hidden rounded-t-lg">
+                    {product.photoUrl ? (
+                      <img src={product.photoUrl} alt={product.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="w-6 h-6 text-muted-foreground opacity-25" />
+                    )}
+                    <div className="absolute top-1 right-1">
+                      {product.stock <= 0
+                        ? <Badge variant="destructive" className="text-[9px] px-1 py-0 leading-3">Rupture</Badge>
+                        : product.stock <= (product.lowStockThreshold || 5)
+                          ? <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-[9px] px-1 py-0 leading-3">Faible</Badge>
+                          : null}
+                    </div>
                   </div>
-                  <h3 className="font-bold text-xs md:text-sm line-clamp-2 leading-tight flex-1">{product.name}</h3>
-                  <div className="text-base md:text-lg font-black text-primary leading-none">{formatCurrency(product.salePrice)}</div>
+                  {/* Name + price */}
+                  <div className="p-2 flex flex-col gap-0.5">
+                    <h3 className="font-bold text-xs md:text-sm line-clamp-2 leading-tight">{product.name}</h3>
+                    <div className="text-sm md:text-base font-black text-primary leading-none">{formatCurrency(product.salePrice)}</div>
+                  </div>
                 </CardContent>
               </Card>
             ))}

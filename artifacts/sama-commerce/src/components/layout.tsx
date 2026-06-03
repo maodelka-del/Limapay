@@ -48,7 +48,7 @@ export function AppLayout({ children, fullscreen = false }: AppLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-muted/20">
+      <div className="min-h-[100dvh] flex w-full bg-muted/20 overflow-hidden">
         <Sidebar className="border-r border-border bg-card">
           <SidebarHeader className="p-4 border-b border-border">
             <h2 className="text-xl font-bold text-primary flex items-center gap-2">
@@ -104,9 +104,9 @@ export function AppLayout({ children, fullscreen = false }: AppLayoutProps) {
           </SidebarFooter>
         </Sidebar>
 
-        <main className="flex-1 flex flex-col w-full min-w-0 overflow-hidden">
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Mobile header */}
-          <header className="h-14 lg:hidden flex items-center px-4 border-b border-border bg-card shrink-0">
+          <header className="h-14 lg:hidden flex items-center px-4 border-b border-border bg-card shrink-0 sticky top-0 z-20">
             <SidebarTrigger className="-ml-2" />
             <h1 className="ml-2 font-bold text-lg text-primary">LIMAPAY</h1>
             {location === "/" && (
@@ -116,8 +116,14 @@ export function AppLayout({ children, fullscreen = false }: AppLayoutProps) {
             )}
           </header>
 
-          {/* Content — no padding in fullscreen (POS) mode */}
-          <div className={fullscreen ? "flex-1 overflow-hidden p-2 md:p-3" : "flex-1 overflow-auto p-4 md:p-6 lg:p-8"}>
+          {/* Content */}
+          <div
+            className={
+              fullscreen
+                ? "flex-1 overflow-hidden p-2 md:p-3"
+                : "flex-1 overflow-auto p-4 md:p-6 lg:p-8 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]"
+            }
+          >
             {children}
           </div>
         </main>
