@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import PaymentSuccess from "@/pages/payment-success";
 import POS from "@/pages/pos";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
@@ -57,6 +58,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/payment/success" component={PaymentSuccess} />
 
       <ProtectedRoute path="/" component={POS} fullscreen />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
