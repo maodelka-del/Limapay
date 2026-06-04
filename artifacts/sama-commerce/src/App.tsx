@@ -4,13 +4,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/layout";
-import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { Spinner } from "@/components/ui/spinner";
 
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
-import PaymentSuccess from "@/pages/payment-success";
 import POS from "@/pages/pos";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
@@ -35,13 +33,14 @@ function ProtectedRoute({ component: Component, fullscreen = false, ...rest }: a
       {...rest}
       component={() => {
         const { user, isLoading } = useAuth();
-        if (isLoading || !user) {
+        if (isLoading) {
           return (
-            <div className="min-h-[100dvh] flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center">
               <Spinner className="w-8 h-8 text-primary" />
             </div>
           );
         }
+        if (!user) return null;
         return (
           <AppLayout fullscreen={fullscreen}>
             <Component />
@@ -57,9 +56,10 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
-      <Route path="/payment/success" component={PaymentSuccess} />
 
+      {/* Caisse = page d'accueil */}
       <ProtectedRoute path="/" component={POS} fullscreen />
+
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/produits" component={Products} />
       <ProtectedRoute path="/stock" component={Stock} />
@@ -83,7 +83,6 @@ function App() {
           </AuthProvider>
         </WouterRouter>
         <Toaster />
-        <PWAInstallPrompt />
       </TooltipProvider>
     </QueryClientProvider>
   );

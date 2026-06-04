@@ -54,8 +54,8 @@ export default function Register() {
     registerMutation.mutate(
       { data: values },
       {
-        onSuccess: async (data) => {
-          await setAuthToken(data.token);
+        onSuccess: (data) => {
+          setAuthToken(data.token);
           setLocation("/");
         },
         onError: () => {
