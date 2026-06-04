@@ -35,14 +35,13 @@ function ProtectedRoute({ component: Component, fullscreen = false, ...rest }: a
       {...rest}
       component={() => {
         const { user, isLoading } = useAuth();
-        if (isLoading) {
+        if (isLoading || !user) {
           return (
             <div className="min-h-[100dvh] flex items-center justify-center">
               <Spinner className="w-8 h-8 text-primary" />
             </div>
           );
         }
-        if (!user) return null;
         return (
           <AppLayout fullscreen={fullscreen}>
             <Component />
