@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/drawer";
 import {
   Search, Plus, Minus, Trash2, Printer, CheckCircle2, QrCode,
-  ShoppingCart, CreditCard, ChevronUp, X, Loader2, AlertCircle, ExternalLink, Camera,
+  ShoppingCart, CreditCard, ChevronUp, X, Loader2, AlertCircle, Camera,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -196,12 +196,16 @@ export default function POS() {
       {
         onSuccess: txn => {
           setDiamondTxnId(txn.transactionId);
-          setDiamondQrUrl(txn.qrCodeUrl ?? null);
+          // If DiamanoPay returns a payment URL but no QR, generate a QR from the URL
+          const qrUrl =
+            txn.qrCodeUrl ??
+            (txn.paymentUrl
+              ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=10&data=${encodeURIComponent(txn.paymentUrl)}`
+              : null);
+          setDiamondQrUrl(qrUrl);
           setDiamondPaymentUrl(txn.paymentUrl ?? null);
           setDiamondLoading(false);
-          if (txn.paymentUrl) {
-            window.open(txn.paymentUrl, "_blank");
-          }
+          // No window.open — client scans the QR shown on screen (physical proximity)
         },
         onError: (err: unknown) => {
           setDiamondLoading(false);
@@ -479,104 +483,110 @@ export default function POS() {
         </DialogContent>
       </Dialog>
 
-      {/* ── DiamondPay / Mobile payment modal ─────────── */}
+      {/* ── Mobile Money modal (paiement de proximité) ─── */}
       <Dialog open={!!mobileOperator} onOpenChange={open => { if (!open) { setMobileOperator(null); resetDiamondState(); } }}>
-        <DialogContent className="sm:max-w-md mx-4">
+        <DialogContent className="sm:max-w-sm mx-4 p-0 overflow-hidden">
           {mobileOperator && (
-            <>
-              <DialogHeader>
-                <DialogTitle className={`text-center text-xl ${OPERATORS[mobileOperator].color}`}>
-                  {OPERATORS[mobileOperator].icon} {OPERATORS[mobileOperator].label}
-                  <span className="block text-xs text-muted-foreground font-normal mt-1">via DiamondPay</span>
-                </DialogTitle>
-              </DialogHeader>
+            <div className="flex flex-col">
 
-              <div className="text-center mb-2">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Montant</p>
-                <p className="text-4xl font-black">{formatCurrency(totalAmount)}</p>
+              {/* Header opérateur */}
+              <div className={`px-5 pt-5 pb-3 text-center ${
+                mobileOperator === "wave" ? "bg-blue-50 border-b border-blue-100" :
+                mobileOperator === "orange_money" ? "bg-orange-50 border-b border-orange-100" :
+                "bg-purple-50 border-b border-purple-100"
+              }`}>
+                <p className={`text-2xl font-black ${OPERATORS[mobileOperator].color}`}>
+                  {OPERATORS[mobileOperator].label}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Paiement de proximité</p>
               </div>
 
-              <div className="flex flex-col items-center gap-4 py-2 min-h-[220px] justify-center">
+              {/* Montant */}
+              <div className="text-center py-4 border-b border-border bg-background">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">À payer</p>
+                <p className="text-5xl font-black text-foreground">{formatCurrency(totalAmount)}</p>
+              </div>
 
-                {/* Loading */}
+              {/* Zone QR / états */}
+              <div className="flex flex-col items-center justify-center py-5 px-4 min-h-[280px] bg-background">
+
+                {/* Chargement */}
                 {diamondLoading && (
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                    <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                    <p className="text-sm">Génération du paiement DiamondPay…</p>
+                    <Loader2 className="w-12 h-12 animate-spin text-primary" />
+                    <p className="text-sm font-medium">Génération du QR…</p>
                   </div>
                 )}
 
-                {/* Error */}
+                {/* Erreur */}
                 {diamondError && !diamondLoading && (
                   <div className="flex flex-col items-center gap-3 w-full">
-                    <AlertCircle className="w-10 h-10 text-destructive" />
+                    <AlertCircle className="w-12 h-12 text-destructive" />
                     <p className="text-sm text-destructive text-center font-medium">{diamondError}</p>
-                    <Button variant="outline" size="sm" onClick={retryDiamondPay}>
+                    <Button variant="outline" size="sm" onClick={retryDiamondPay} className="mt-1">
                       Réessayer
                     </Button>
                   </div>
                 )}
 
-                {/* Payment URL (redirect flow) */}
-                {!diamondLoading && !diamondError && diamondPaymentUrl && (
-                  <div className="flex flex-col items-center gap-3 w-full">
-                    <div className="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
-                      <ExternalLink className="w-5 h-5 text-blue-600 mx-auto mb-1" />
-                      <p className="text-sm text-blue-800 font-medium">Page de paiement ouverte</p>
-                      <p className="text-xs text-blue-600 mt-1">Le client complète le paiement sur DiamondPay</p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => window.open(diamondPaymentUrl, "_blank")}
-                      className="text-blue-600 border-blue-300">
-                      <ExternalLink className="w-3 h-3 mr-1" /> Ré-ouvrir le lien
-                    </Button>
-                    {diamondTxnId && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        Vérification du paiement…
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* QR Code flow */}
-                {!diamondLoading && !diamondError && !diamondPaymentUrl && diamondQrUrl && (
-                  <div className="flex flex-col items-center gap-3 w-full">
-                    <p className="text-sm text-muted-foreground text-center">
-                      Le client scanne ce QR avec {OPERATORS[mobileOperator].label}
+                {/* QR code — le client scanne depuis son app Wave/OM/FreeMoney */}
+                {!diamondLoading && !diamondError && diamondQrUrl && !saleCreatingFromPoll && (
+                  <div className="flex flex-col items-center gap-4 w-full">
+                    <p className="text-sm font-semibold text-center text-foreground">
+                      Le client scanne ce QR avec son app
                     </p>
-                    <div className="p-3 bg-white rounded-xl border-2 border-border shadow-sm">
-                      <img src={diamondQrUrl} alt="QR DiamondPay" className="w-48 h-48" />
+                    {/* QR avec bordure animée pendant l'attente */}
+                    <div className="relative p-1 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 animate-pulse">
+                      <div className="p-3 bg-white rounded-xl shadow-sm">
+                        <img
+                          src={diamondQrUrl}
+                          alt={`QR ${OPERATORS[mobileOperator].label}`}
+                          className="w-52 h-52 block"
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Vérification automatique du paiement…
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-full px-3 py-1.5">
+                      <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
+                      <span>En attente du paiement client…</span>
                     </div>
                   </div>
                 )}
 
-                {/* Confirmed by poll (in progress creating sale) */}
+                {/* Paiement confirmé — enregistrement en cours */}
                 {saleCreatingFromPoll && (
                   <div className="flex flex-col items-center gap-3">
-                    <CheckCircle2 className="w-10 h-10 text-green-500" />
-                    <p className="text-sm text-green-700 font-medium">Paiement confirmé ! Enregistrement…</p>
+                    <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle2 className="w-12 h-12 text-green-500" />
+                    </div>
+                    <p className="text-base font-bold text-green-700">Paiement reçu !</p>
+                    <p className="text-xs text-muted-foreground">Enregistrement de la vente…</p>
                   </div>
                 )}
 
               </div>
 
-              <DialogFooter className="mt-2 flex-col gap-2 sm:flex-row">
-                <Button variant="outline" onClick={() => { setMobileOperator(null); resetDiamondState(); }}>
+              {/* Actions */}
+              <div className="px-4 pb-4 pt-2 border-t border-border flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => { setMobileOperator(null); resetDiamondState(); }}
+                  disabled={saleCreatingFromPoll}
+                >
                   Annuler
                 </Button>
                 <Button
                   onClick={submitMobileSaleManual}
                   disabled={createSale.isPending || saleCreatingFromPoll || diamondLoading}
-                  className={`px-6 text-white ${OPERATORS[mobileOperator].activeBg} hover:opacity-90`}
+                  className={`flex-1 text-white font-bold ${OPERATORS[mobileOperator].activeBg} hover:opacity-90`}
                 >
-                  {createSale.isPending || saleCreatingFromPoll ? "Enregistrement…" : "✓ Confirmer paiement reçu"}
+                  {createSale.isPending || saleCreatingFromPoll
+                    ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Enregistrement…</>
+                    : "✓ Confirmer manuellement"}
                 </Button>
-              </DialogFooter>
-            </>
+              </div>
+
+            </div>
           )}
         </DialogContent>
       </Dialog>
