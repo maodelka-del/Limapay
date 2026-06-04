@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: limapay
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @workspace/sama-commerce run build && pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DIAMANOPAY_API_KEY
+        sync: false
+      - key: DIAMANOPAY_SUCCESS_URL
+        sync: false
+      - key: DIAMANOPAY_REDIRECT_URL
+        sync: false
+      - key: DIAMANOPAY_CALLBACK_URL
+        sync: false
+      - key: DIAMANOPAY_WEBHOOK_URL
+        sync: false
